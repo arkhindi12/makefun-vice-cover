@@ -7,6 +7,7 @@
 import {
   LAYOUTS,
   SIZES,
+  ZOOM,
   clampCrop,
   cropBox,
   loadDisplayFont,
@@ -35,6 +36,25 @@ const library = [];
 
 const sizeOf = () => SIZES.find((s) => s.id === state.size) ?? SIZES[0];
 const countOf = () => panelRects(state.layout, state.size === 'wide').length;
+
+/**
+ * The panel label under "2. Panel": which panel is chosen, out of how many, and at what zoom, e.g.
+ * `panel 2 of 4 · zoom 1.35×`. It is written wherever the selection or the crop changes.
+ */
+function paintPanelLabel() {
+  const n = countOf();
+  const crop = state.panels[state.selected]?.crop ?? { zoom: ZOOM.min };
+  $('panellabel').textContent = `panel ${state.selected + 1} of ${n} · zoom ${crop.zoom.toFixed(2)}×`;
+}
+
+/**
+ * The one line under the drop zone: how many panels this layout has, that a photo goes into the next empty one, and
+ * that a panel can be dragged to reframe. It reads its count from panelRects, so every layout is described right.
+ */
+function paintDropHint() {
+  const n = countOf();
+  $('drophint').textContent = `This layout has ${n} panel${n === 1 ? '' : 's'}: a photo fills the next empty panel, and you can drag a panel to reframe it.`;
+}
 
 /** Loads an image URL, resolving once it can be drawn. */
 function loadImage(url) {
@@ -110,6 +130,7 @@ function buildPickers() {
       state.layout = l.id;
       buildPickers();
       buildPanelStrip();
+      paintDropHint();
       draw();
     });
     layouts.appendChild(b);
@@ -151,27 +172,29 @@ function buildPanelStrip() {
   for (let i = n; i < state.panels.length; i++) state.panels.splice(i, 1);
   while (state.panels.length < n) state.panels.push({ src: null, img: null, crop: { zoom: 1, ox: 0, oy: 0 } });
   if (state.selected >= n) state.selected = 0;
-  $('panellabel').textContent = `panel ${state.selected + 1} of ${n}`;
+  paintPanelLabel();
+  paintDropHint();
   syncCropControls();
 }
 
 function select(i) {
   state.selected = i;
   [...$('panels').children].forEach((b, k) => b.setAttribute('aria-pressed', String(k === i)));
-  $('panellabel').textContent = `panel ${i + 1} of ${countOf()}`;
+  paintPanelLabel();
   syncCropControls();
   paintMask();
 }
 
 function syncCropControls() {
   const p = state.panels[state.selected];
-  const crop = p?.crop ?? { zoom: 1, ox: 0, oy: 0 };
+  const crop = p?.crop ?? { zoom: ZOOM.min, ox: 0, oy: 0 };
   $('zoom').value = String(crop.zoom);
   $('panx').value = String(crop.ox);
   $('pany').value = String(crop.oy);
   $('zoomout').textContent = `${crop.zoom.toFixed(2)}x`;
   $('panxout').textContent = crop.ox.toFixed(2);
   $('panyout').textContent = crop.oy.toFixed(2);
+  paintPanelLabel();
 }
 
 /** Sets the selected panel's crop, clamped so the photo always covers the panel. */
@@ -273,6 +296,24 @@ async function addSample(name) {
 
 // ---------------------------------------------------------------- export
 
+/**
+ * The exported file's name, built from what the poster says: `<place>-<caption>-<w>x<h>-cover.png`, lowercased, with
+ * every run of non-alphanumerics turned into one dash and the ends trimmed; with neither a place nor a caption it is
+ * just `cover.png`, so the name still says what it is. Caption line breaks (|) go with the other separators.
+ */
+export function fileNameFor(state, size) {
+  const slug = (text) =>
+    String(text ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  const stem = [slug(state.place), slug(state.caption), `${size.w}x${size.h}`].filter(Boolean).join('-');
+  // The size alone is not a name that says what the file is: with no place and no caption it is just `cover`.
+  const named = slug(state.place) || slug(state.caption);
+  const name = named ? `${stem}-cover` : 'cover';
+  return `${name}.png`;
+}
+
 function exportPng() {
   const size = sizeOf();
   const out = document.createElement('canvas');
@@ -283,7 +324,7 @@ function exportPng() {
     if (!blob) return;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `vice-lines-${size.w}x${size.h}.png`;
+    a.download = fileNameFor(state, size);
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -351,9 +392,44 @@ preview.addEventListener(
 
 // ---------------------------------------------------------------- controls
 
+/** Whether the person is typing, so a letter typed into the caption is not read as a shortcut. */
+function typingInText() {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'TEXTAREA') return true;
+  if (tag === 'INPUT') {
+    const type = (el.getAttribute('type') ?? 'text').toLowerCase();
+    return ['text', 'search', 'url', 'tel', 'email', 'password', 'number'].includes(type);
+  }
+  return el.isContentEditable === true;
+}
+
+/**
+ * Ctrl/Cmd+E exports, Ctrl/Cmd+O opens the file picker; both are the ones the button and the drop zone name. The
+ * shortcuts are skipped while a text input or textarea has focus, so E in a headline stays an E.
+ */
+function onShortcut(e) {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+  if (typingInText()) return;
+  const key = e.key.toLowerCase();
+  if (key === 'e') {
+    e.preventDefault();
+    exportPng();
+  } else if (key === 'o') {
+    e.preventDefault();
+    $('file').click();
+  }
+}
+
 function wireControls() {
   const file = $('file');
   const drop = $('drop');
+  // The zoom slider's range is the renderer's ZOOM, written once into the input, never repeated as literals here.
+  const zoom = $('zoom');
+  zoom.min = String(ZOOM.min);
+  zoom.max = String(ZOOM.max);
+  zoom.step = String(ZOOM.step);
   drop.addEventListener('click', () => file.click());
   drop.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') file.click();
@@ -383,6 +459,7 @@ function wireControls() {
     e.preventDefault();
     if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
   });
+  document.addEventListener('keydown', onShortcut);
 
   $('caption').addEventListener('input', (e) => {
     state.caption = e.target.value;
@@ -416,12 +493,37 @@ function wireControls() {
     if (b) addSample(b.dataset.sample);
   });
   $('export').addEventListener('click', exportPng);
+  $('fillnext').addEventListener('click', fillNext);
   window.addEventListener('resize', () => paintMask());
+}
+
+/** Blank window.__shotReady so the screenshot run waits on this page's own scene, not one set before reload. */
+function markShotLoading() {
+  window.__shotReady = false;
+  window.__lastExport = null;
+}
+
+/** Fills the next empty panel with the library's first photo, and says so when there is nothing to fill it with. */
+function fillNext() {
+  const n = countOf();
+  const target = state.panels.slice(0, n).findIndex((p) => !p.img);
+  const entry = library[0];
+  if (target < 0) {
+    $('status').textContent = `All ${n} panels are filled: click a panel to choose which one a photo replaces.`;
+    return;
+  }
+  if (!entry) {
+    $('status').textContent = 'Load a photo first: drop one here, or pick a sample.';
+    return;
+  }
+  assign(entry);
+  $('status').textContent = `Panel ${target + 1} filled from ${entry.name}.`;
 }
 
 // ---------------------------------------------------------------- boot
 
 async function boot() {
+  markShotLoading();
   wireControls();
   buildPickers();
   buildPanelStrip();
@@ -447,6 +549,7 @@ async function boot() {
         buildPickers();
         buildPanelStrip();
         refreshThumbs();
+        paintDropHint();
         draw();
       },
     });

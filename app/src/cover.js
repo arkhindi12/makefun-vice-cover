@@ -46,6 +46,18 @@ const font = (size) => `${size}px "${FONT_FAMILY}", Impact, "Arial Black", sans-
 export const TITLE_WORD = 'CHROME';
 export const TITLE_INITIAL = 'C';
 
+/**
+ * The zoom a panel's crop is allowed, stated once here and read by the editor's slider, the wheel and the clamp alike:
+ * 1.0 (the photo's own cover fit) up to 3.0, in steps of 0.05. cropBox reads these too, so no path can zoom past them.
+ */
+export const ZOOM = { min: 1, max: 3, step: 0.05 };
+
+/** Rounds a zoom onto the step and into the range, so a wheel notch and the slider land on the same values. */
+export function clampZoom(zoom) {
+  const stepped = Math.round((zoom - ZOOM.min) / ZOOM.step) * ZOOM.step + ZOOM.min;
+  return Math.max(ZOOM.min, Math.min(ZOOM.max, Number(stepped.toFixed(2))));
+}
+
 // ---------------------------------------------------------------- layout
 
 /**
@@ -246,7 +258,7 @@ export function cropBox(img, pw, ph, crop) {
   let bh = ph;
   if (split > minAspect) bh = pw / minAspect;
   else if (split < 1 / minAspect) bw = ph / minAspect;
-  const zoom = Math.max(1, Math.min(4, crop?.zoom ?? 1));
+  const zoom = clampZoom(crop?.zoom ?? ZOOM.min);
   const iw = img.naturalWidth || img.width;
   const ih = img.naturalHeight || img.height;
   const base = Math.max(bw / iw, bh / ih);
@@ -304,12 +316,24 @@ function drawPanel(ctx, panel, w, h) {
   if (panel.img) {
     // The tint, after the lift: the backdrop's sunset ramp is carried into the photo at partial alpha, warm cream
     // lights and a teal shadow, so the panel belongs to the poster's palette without losing the photo's own contrast.
+    // It is strong enough to pull a flat midday photo into the same warm hour as a dusk one, which is what makes a
+    // collage of different photographs read as one poster instead of two.
     pass('soft-light', () => {
       const warm = ctx.createLinearGradient(x, y + ph, x + pw * 0.35, y);
-      warm.addColorStop(0, 'rgba(255, 128, 170, 0.46)');
-      warm.addColorStop(0.5, 'rgba(255, 176, 150, 0.38)');
-      warm.addColorStop(1, 'rgba(150, 150, 250, 0.42)');
+      warm.addColorStop(0, 'rgba(255, 118, 160, 0.66)');
+      warm.addColorStop(0.5, 'rgba(255, 168, 126, 0.56)');
+      warm.addColorStop(1, 'rgba(150, 140, 240, 0.56)');
       ctx.fillStyle = warm;
+      ctx.fillRect(x, y, pw, ph);
+    });
+    // Temperature lock: a warm multiply pass over the whole panel, so a photograph shot in flat daylight is graded
+    // to the same golden hour as the sunset ones and the seams stop showing.
+    pass('multiply', () => {
+      const lock = ctx.createLinearGradient(x, y, x + pw * 0.5, y + ph);
+      lock.addColorStop(0, 'rgba(255, 214, 196, 1)');
+      lock.addColorStop(1, 'rgba(240, 206, 236, 1)');
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = lock;
       ctx.fillRect(x, y, pw, ph);
     });
     // A rim of warm light down one edge, as if the sun sat just out of frame behind the panel.
@@ -679,16 +703,26 @@ function drawRatingPlate(ctx, w, h, corner) {
 
 /** Scanned-film grain: noise generated once into a small offscreen tile, then tiled over the cover. */
 function drawGrain(ctx, w, h, seed) {
+  // The tile is coarse enough that the grain stays a printed texture rather than per-pixel static: a
+  // finer tile costs megabytes in a PNG export at the sizes this app writes.
   const tileSize = 256;
   const { c, x } = scratch(tileSize, tileSize);
   const data = x.createImageData(tileSize, tileSize);
   const rand = seeded(seed);
-  for (let i = 0; i < data.data.length; i += 4) {
-    const v = 72 + Math.round(rand() * 116);
-    data.data[i] = v;
-    data.data[i + 1] = v;
-    data.data[i + 2] = v;
-    data.data[i + 3] = 255;
+  const block = 2;
+  for (let by = 0; by < tileSize; by += block) {
+    for (let bx = 0; bx < tileSize; bx += block) {
+      const v = 72 + Math.round(rand() * 116);
+      for (let dy = 0; dy < block; dy++) {
+        for (let dx = 0; dx < block; dx++) {
+          const i = ((by + dy) * tileSize + (bx + dx)) * 4;
+          data.data[i] = v;
+          data.data[i + 1] = v;
+          data.data[i + 2] = v;
+          data.data[i + 3] = 255;
+        }
+      }
+    }
   }
   x.putImageData(data, 0, 0);
   ctx.save();

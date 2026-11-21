@@ -7,6 +7,9 @@ export async function runShot(shot, query, api) {
     document.body.classList.add('shot-cover');
   }
   const { state, loadImage } = api;
+  // The scene flags its work here and stamps it done at the end, so a reload starts from "not ready" again.
+  window.__shotReady = false;
+  window.__lastExport = null;
   const layout = query.get('layout');
   const size = query.get('size');
   const caption = query.get('caption');
@@ -27,6 +30,9 @@ export async function runShot(shot, query, api) {
   const images = [];
   for (const name of names) images.push(await loadImage(`./samples/${name}.jpg`));
 
+  // Every photo named is loaded into the library, so the strip and the thumbnail row show what the panels hold.
+  for (const img of images) if (!api.library.some((e) => e.src === img.src)) api.library.push({ name: 'sample', src: img.src, img });
+
   const n = api.countOf();
   for (let i = 0; i < n; i++) {
     // Every panel takes a photo: with fewer photos than panels the samples cycle through them with
@@ -35,7 +41,6 @@ export async function runShot(shot, query, api) {
     const pass = Math.floor(i / images.length);
     state.panels[i] = { src: img.src, img, crop: { zoom: 1 + pass * 0.18, ox: pass * 0.04, oy: -pass * 0.03 } };
   }
-  for (const img of images) if (!api.library.some((e) => e.src === img.src)) api.library.push({ name: 'sample', src: img.src, img });
 
   const crops = (query.get('crops') ?? '').split(';').filter(Boolean);
   crops.forEach((spec, i) => {
@@ -53,7 +58,7 @@ export async function runShot(shot, query, api) {
   api.rebuild();
   const file = document.getElementById('file');
   if (file) file.hidden = true;
-  document.getElementById('status').textContent = `${n} panels filled from ${names.length} photo${names.length === 1 ? '' : 's'}. Drag a panel to reframe, then Export PNG.`;
+  document.getElementById('status').textContent = `${n} panels filled from ${images.length} photo${images.length === 1 ? '' : 's'}. Drag a panel to reframe, then Export PNG.`;
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   window.__shotReady = true;
 }

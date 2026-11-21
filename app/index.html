@@ -17,7 +17,7 @@
   </div>
   <div class="topright">
     <span id="fontstate" class="chip">Loading lettering</span>
-    <button id="export" type="button" class="primary">Export PNG</button>
+    <button id="export" type="button" class="primary" title="Export the cover as a PNG (Ctrl/Cmd+E)">Export PNG</button>
   </div>
 </header>
 
@@ -40,11 +40,12 @@
       <h2>1. Photos</h2>
       <div id="drop" class="drop" tabindex="0" role="button">
         <strong>Drop photos here</strong>
-        <span>or click to choose (several at once is fine)</span>
+        <span>or click to choose (several at once is fine) · <kbd>Ctrl/Cmd+O</kbd></span>
       </div>
       <input id="file" type="file" accept="image/*" multiple hidden>
       <div id="thumbs" class="thumbs"></div>
-      <p class="hint">Click a thumbnail to fill the next empty panel, or click a panel first to replace it. Photos never leave this machine.</p>
+      <p class="hint" id="drophint">This layout has 3 panels: a photo fills the next empty panel, and you can drag a panel to reframe it.</p>
+      <div class="mini"><button type="button" class="ghost" id="fillnext">Fill next empty panel</button></div>
       <div class="samples" id="samples">
         <button type="button" class="ghost" data-sample="boulevard">Sample: boulevard</button>
         <button type="button" class="ghost" data-sample="pier">Sample: pier</button>
@@ -54,7 +55,7 @@
     <section class="block">
       <h2>2. Panel <span id="panellabel" class="dim">none selected</span></h2>
       <div id="panels" class="panels"></div>
-      <label class="row"><span>Zoom</span><input id="zoom" type="range" min="1" max="4" step="0.01" value="1"><output id="zoomout">1.00x</output></label>
+      <label class="row"><span>Zoom</span><input id="zoom" type="range" min="1" max="3" step="0.05" value="1"><output id="zoomout">1.00x</output></label>
       <label class="row"><span>Pan across</span><input id="panx" type="range" min="-1" max="1" step="0.01" value="0"><output id="panxout">0</output></label>
       <label class="row"><span>Pan up/down</span><input id="pany" type="range" min="-1" max="1" step="0.01" value="0"><output id="panyout">0</output></label>
       <div class="mini">
