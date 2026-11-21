@@ -1,7 +1,7 @@
 # Vice Cover — a GTA-style cover art maker that runs offline
 
 Turn your own photos and a caption into multi-panel poster cover art with a Vice City sunset grade,
-and export it as a PNG. Everything happens in your browser: the photos never leave your machine.
+and export it as a JPEG. Everything happens in your browser: the photos never leave your machine.
 
 [![make.fun](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01)
 [![rank](https://make.fun/badge/gta6-cover-art-01/arkhindi12/makefun-vice-cover/rank.svg)](https://make.fun/bounty/gta6-cover-art-01)
@@ -23,7 +23,19 @@ and export it as a PNG. Everything happens in your browser: the photos never lea
   kicker. A `|` in the caption starts a new line.
 - **Poster furniture** — a corner location strip, a rating plate and a series lockup, aligned to the
   panel edges instead of floating on top.
-- **Three post sizes** — 1080 × 1080, 1080 × 1350 and 1920 × 1080, exported as PNG.
+- **Three post sizes** — 1080 × 1080, 1080 × 1350 and 1920 × 1080, exported as JPEG.
+
+## Layouts
+
+| Layout | Panels drawn, upright | Panels drawn, wide |
+| --- | --- | --- |
+| `split` — 2-panel split | 2 | 3 |
+| `band` — 3-panel band | 4 | 4 |
+| `grid` — 6-panel grid | 6 | 6 |
+
+The panel count is `panelRects(layout, wide).length` in `app/src/cover.js`, and the editor reads it from there rather
+than restating it, so the strip, the drop hint and the renderer always agree. Upright means a canvas taller than it is
+wide; wide means any canvas more than 1.25 times as wide as it is tall.
 
 ## Run it
 

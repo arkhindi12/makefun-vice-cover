@@ -21,6 +21,16 @@ export const LAYOUTS = [
   { id: 'grid', label: '6-panel grid', panels: 6 },
 ];
 
+/**
+ * The layout ids panelRects accepts, derived from LAYOUTS so the picker and the renderer cannot disagree. An id not in
+ * this list is not a layout: panelRects falls back to FALLBACK_LAYOUT rather than letting it reach the last branch of
+ * the switch, where an unknown id would silently draw the split poster under its own name.
+ */
+export const LAYOUT_IDS = LAYOUTS.map((l) => l.id);
+
+/** The layout an unknown id is drawn as. */
+export const FALLBACK_LAYOUT = 'split';
+
 /** The display stack the poster's lettering is set in: the heaviest faces a desktop has, no font file shipped. */
 export const FONT_FAMILY = "'Arial Black', 'Helvetica Neue', Impact, sans-serif";
 /**
@@ -58,11 +68,15 @@ export function clampZoom(zoom) {
  *   split  2 panels: a wide hero beside a narrower one (a low full-width hero over two tall ones when wide)
  *   band   3 panels: a tall hero, a narrow strip beside it, and a shorter panel under the strip
  *   grid   6 panels: 3 wide by 2 tall, columns and rows uneven
+ *
+ * An id outside LAYOUT_IDS is drawn as FALLBACK_LAYOUT, named once here, so the split branch below is reached because
+ * the id is split rather than because it fell through every other test.
  */
 export function panelRects(layout, wide = false) {
+  const id = LAYOUT_IDS.includes(layout) ? layout : FALLBACK_LAYOUT;
   const g = 0.012;
   const cols = (cuts) => cuts.slice(0, -1).map((x, i) => ({ x: x + (i === 0 ? 0 : g / 2), w: cuts[i + 1] - x - g }));
-  if (layout === 'band') {
+  if (id === 'band') {
     if (wide) {
       const c = cols([0, 0.44, 0.66, 1]);
       return [
@@ -80,7 +94,7 @@ export function panelRects(layout, wide = false) {
       { ...c[2], y: 0, h: 1 },
     ];
   }
-  if (layout === 'grid') {
+  if (id === 'grid') {
     const c = cols(wide ? [0, 0.33, 0.67, 1] : [0, 0.34, 0.66, 1]);
     const r = wide ? [0, 0.52, 1] : [0, 0.6, 1];
     const out = [];
@@ -471,7 +485,7 @@ export function setCaption(ctx, caption, boxW, boxH, weight = 0.62) {
   for (const word of words) {
     const next = row === '' ? word : `${row} ${word}`;
     ctx.font = font(boxH * weight);
-    if (row !== '' && ctx.measureText(next).width > boxW * 1.3) {
+    if (row !== '' && ctx.measureText(next).width > boxW * 1.08) {
       rows.push(row);
       row = word;
     } else {
@@ -488,7 +502,7 @@ export function setCaption(ctx, caption, boxW, boxH, weight = 0.62) {
     const probe = fitWord(ctx, longest, boxW, rowsHeight, weight * 1.85);
     ctx.font = font(probe);
     const lineW = ctx.measureText(longest).width;
-    if (lineW > 0 && lineW < boxW) rowsHeight = Math.min(boxH * 0.72, (rowsHeight * boxW) / lineW);
+    if (lineW > 0 && lineW < boxW) rowsHeight = Math.min(boxH * 0.58, (rowsHeight * boxW) / lineW);
   }
   const size = fitWord(ctx, longest, boxW, rowsHeight, weight * 1.85);
   const lines = rows.map((text) => ({ text, size, kind: 'head' }));
@@ -833,7 +847,7 @@ export function renderCover(ctx, state) {
   const canvas = ctx.canvas;
   const w = canvas.width;
   const h = canvas.height;
-  const layout = LAYOUTS.some((l) => l.id === state.layout) ? state.layout : 'split';
+  const layout = LAYOUT_IDS.includes(state.layout) ? state.layout : FALLBACK_LAYOUT;
   const wide = w > h * 1.25;
   const rects = panelRects(layout, wide);
   const slot = captionBoxFor(ctx, slotsOf(layout, wide), rects, w, h, state.caption ?? '');

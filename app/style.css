@@ -126,6 +126,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--line); background: #24152f;
   font: 700 12px/1 ui-sans-serif, system-ui; color: var(--text);
 }
+.panels button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; box-shadow: 0 0 0 4px rgba(95, 227, 224, 0.25); }
 .panels button[aria-pressed="true"] { background: linear-gradient(180deg, var(--gold), var(--pink)); color: #1a0612; border-color: transparent; }
 .panels button.filled::after { content: "•"; color: var(--cyan); margin-left: 2px; }
 .panels button[aria-pressed="true"].filled::after { color: #1a0612; }

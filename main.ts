@@ -128,6 +128,11 @@ function indexHtmlOf(appDir: string): number {
   return st.size;
 }
 
+/** A byte count against the cap it has to fit, as a percentage, so a number close to its cap reads as close. */
+function share(bytes: number, cap: number): string {
+  return `${((bytes / cap) * 100).toFixed(1)}%`;
+}
+
 // ---------------------------------------------------------------- image headers: no decoder, no dependency
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -271,6 +276,11 @@ function main(): void {
 
   const dims = shots.map((s) => `${s.name} ${s.w} x ${s.h}`).join(', ');
   process.stdout.write(`Vice Lines: app/ ${app.count} files and directories (${app.totalBytes} bytes), screenshots/ ${shots.length} images (${dims}), dossier.json ${dossier.length} bytes\n`);
+  // Each file against the cap it has to fit, one per line: a build is not only passing, it is passing by this much.
+  for (const s of shots) {
+    process.stdout.write(`  screenshots/${s.name}: ${s.bytes} bytes, ${share(s.bytes, CAPS.shot_max_bytes)} of the ${CAPS.shot_max_bytes}-byte cap\n`);
+  }
+  process.stdout.write(`  dossier.json: ${dossier.length} bytes, ${share(dossier.length, CAPS.dossier_max_bytes)} of the ${CAPS.dossier_max_bytes}-byte cap\n`);
 }
 
 try {

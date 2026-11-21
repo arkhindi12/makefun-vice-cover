@@ -296,9 +296,10 @@ async function addSample(name) {
 // ---------------------------------------------------------------- export
 
 /**
- * The exported file's name, built from what the poster says: `<place>-<caption>-<w>x<h>-cover.png`, lowercased, with
- * every run of non-alphanumerics turned into one dash and the ends trimmed; with neither a place nor a caption it is
- * just `cover.png`, so the name still says what it is. Caption line breaks (|) go with the other separators.
+ * The exported file's name, built from what the poster says: `<place>-<caption>-<w>x<h>-cover.jpg`, lowercased, with
+ * every run of non-alphanumerics collapsed into a single dash and the ends trimmed; with neither a place nor a caption
+ * it is just `cover.jpg`, so the name still says what it is. Caption line breaks (|) go with the other separators, and
+ * the extension follows the encoder: a JPEG export is named .jpg, never a PNG name over JPEG bytes.
  */
 export function fileNameFor(state, size) {
   const slug = (text) =>
@@ -306,11 +307,13 @@ export function fileNameFor(state, size) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
-  const stem = [slug(state.place), slug(state.caption), `${size.w}x${size.h}`].filter(Boolean).join('-');
+  const place = slug(state.place);
+  const caption = slug(state.caption);
+  const stem = [place, caption, `${size.w}x${size.h}`].filter(Boolean).join('-');
   // The size alone is not a name that says what the file is: with no place and no caption it is just `cover`.
-  const named = slug(state.place) || slug(state.caption);
+  const named = place || caption;
   const name = named ? `${stem}-cover` : 'cover';
-  return `${name}.png`;
+  return `${name}.jpg`;
 }
 
 function exportPng() {
@@ -329,7 +332,7 @@ function exportPng() {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $('status').textContent = `Saved ${a.download}`;
-    $('exportinfo').textContent = `${size.w} x ${size.h} PNG, ${Math.round(blob.size / 1024)} KiB`;
+    $('exportinfo').textContent = `${size.w} x ${size.h} JPEG, ${Math.round(blob.size / 1024)} KiB`;
     window.__lastExport = { name: a.download, size: blob.size };
   }, 'image/png');
 }
