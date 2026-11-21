@@ -471,7 +471,7 @@ export function setCaption(ctx, caption, boxW, boxH, weight = 0.62) {
   for (const word of words) {
     const next = row === '' ? word : `${row} ${word}`;
     ctx.font = font(boxH * weight);
-    if (row !== '' && ctx.measureText(next).width > boxW * 1.08) {
+    if (row !== '' && ctx.measureText(next).width > boxW * 1.3) {
       rows.push(row);
       row = word;
     } else {
@@ -479,7 +479,7 @@ export function setCaption(ctx, caption, boxW, boxH, weight = 0.62) {
     }
   }
   if (row) rows.push(row);
-  const rowsHeight = boxH / (rows.length + (kicker ? 0.55 : 0));
+  let rowsHeight = boxH / (rows.length + (kicker ? 0.55 : 0));
   const longest = rows.reduce((a, b) => (a.length > b.length ? a : b), '');
   // A headline of one word knows its width exactly, so the room it is given is the largest the box allows: a line of
   // that width fits the box at the size found by the first measure, so it is scaled up to fill the box instead of
@@ -488,7 +488,7 @@ export function setCaption(ctx, caption, boxW, boxH, weight = 0.62) {
     const probe = fitWord(ctx, longest, boxW, rowsHeight, weight * 1.85);
     ctx.font = font(probe);
     const lineW = ctx.measureText(longest).width;
-    if (lineW > 0 && lineW < boxW) rowsHeight = Math.min(boxH * 2.4, (rowsHeight * boxW) / lineW);
+    if (lineW > 0 && lineW < boxW) rowsHeight = Math.min(boxH * 0.72, (rowsHeight * boxW) / lineW);
   }
   const size = fitWord(ctx, longest, boxW, rowsHeight, weight * 1.85);
   const lines = rows.map((text) => ({ text, size, kind: 'head' }));
@@ -858,13 +858,11 @@ export function renderCover(ctx, state) {
   // A vertical caption is a column of letters, so its size is the column's width (one glyph across), not the height.
   // The headline is set one line deep: its box is sized for the rows it needs, so the lettering fills the panel's
   // width as one heavy block instead of standing small in a box made for a stack of words.
-  const head = splitCaption(state.caption ?? '').headline.split(/\s+/).filter(Boolean).length;
-  const rows = Math.max(1, slot.vertical ? 1 : Math.min(head, 2));
+  // A wide weight makes the headline the poster's block: one line fills the column when the whole headline fits on
+  // one, and a headline too long for a single line falls back to a stacked block set in proportion to the room.
   const block = slot.vertical
     ? setCaption(ctx, state.caption ?? '', boxW, boxW * 1.4, 0.74)
-    : setCaption(ctx, state.caption ?? '', boxW, boxH * (0.55 / rows), 0.99);
-  // The box the block is set to its foot in: the room those rows take, standing at the panel's foot.
-  const blockH = slot.vertical ? boxH : Math.min(boxH, block.total / 0.9);
+    : setCaption(ctx, state.caption ?? '', boxW, boxH, 0.62);
   if (block.lines.length > 0 && block.lines[0].text) {
     measureCaption(ctx, block, boxW, boxH);
     const bx = (slot.caption.x + slot.caption.w / 2) * w;
