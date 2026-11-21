@@ -22,9 +22,10 @@ export const LAYOUTS = [
 ];
 
 /**
- * The layout ids panelRects accepts, derived from LAYOUTS so the picker and the renderer cannot disagree. An id not in
- * this list is not a layout: panelRects falls back to FALLBACK_LAYOUT rather than letting it reach the last branch of
- * the switch, where an unknown id would silently draw the split poster under its own name.
+ * The layout ids panelRects accepts, derived from LAYOUTS so the picker and the renderer cannot disagree: this is the
+ * one list the picker offers, the renderer normalises against, and the split branch below names. An id not in it is
+ * not a layout, so panelRects draws FALLBACK_LAYOUT and says so, rather than letting the id reach the split code and
+ * wear the split poster under a name it never earned.
  */
 export const LAYOUT_IDS = LAYOUTS.map((l) => l.id);
 
@@ -70,7 +71,8 @@ export function clampZoom(zoom) {
  *   grid   6 panels: 3 wide by 2 tall, columns and rows uneven
  *
  * An id outside LAYOUT_IDS is drawn as FALLBACK_LAYOUT, named once here, so the split branch below is reached because
- * the id is split rather than because it fell through every other test.
+ * the id is split rather than because it fell through every other test. That branch states its id explicitly
+ * (`if (id === FALLBACK_LAYOUT)`), so it is the split layout's own code rather than whatever is left at the end.
  */
 export function panelRects(layout, wide = false) {
   const id = LAYOUT_IDS.includes(layout) ? layout : FALLBACK_LAYOUT;
@@ -105,18 +107,23 @@ export function panelRects(layout, wide = false) {
     }
     return out;
   }
-  if (wide) {
-    const c = cols([0, 0.36, 0.64, 1]);
+  if (id === FALLBACK_LAYOUT) {
+    if (wide) {
+      const c = cols([0, 0.36, 0.64, 1]);
+      return [
+        { x: 0, y: 0, w: 1, h: 0.56 - g },
+        { ...c[0], y: 0.56 + g / 2, h: 0.44 - g / 2 },
+        { ...c[2], y: 0.56 + g / 2, h: 0.44 - g / 2 },
+      ].slice(0, 3);
+    }
     return [
-      { x: 0, y: 0, w: 1, h: 0.56 - g },
-      { ...c[0], y: 0.56 + g / 2, h: 0.44 - g / 2 },
-      { ...c[2], y: 0.56 + g / 2, h: 0.44 - g / 2 },
-    ].slice(0, 3);
+      { x: 0, y: 0, w: 0.57 - g, h: 1 },
+      { x: 0.57 + g / 2, y: 0, w: 1 - 0.57 - g / 2, h: 1 },
+    ];
   }
-  return [
-    { x: 0, y: 0, w: 0.57 - g, h: 1 },
-    { x: 0.57 + g / 2, y: 0, w: 1 - 0.57 - g / 2, h: 1 },
-  ];
+  // Unreachable today: every id in LAYOUT_IDS is band, grid or split, and anything else was already replaced by
+  // FALLBACK_LAYOUT above. It fails loudly rather than handing back undefined to a caller that only wanted rects.
+  throw new Error(`panelRects: no layout named ${JSON.stringify(id)} (known: ${LAYOUT_IDS.join(', ')})`);
 }
 
 /**

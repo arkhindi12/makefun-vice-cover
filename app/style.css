@@ -172,3 +172,7 @@ body.shot-cover .art { display: block; box-shadow: none; }
 body.shot-cover, body.shot-cover .editor, body.shot-cover .stage, body.shot-cover .board, body.shot-cover .art { margin: 0; padding: 0; background: #000; }
 body.shot-cover #preview { display: block; width: auto; height: auto; max-width: none; max-height: none; cursor: default; box-shadow: none; }
 body.shot-cover .mask { display: none; }
+
+/* Keyboard focus on a panel: the selection box alone is drawn for a mouse click, but a panel reached by Tab also
+   takes a solid cyan ring, so the focused panel is never invisible against the dashed white border it already has. */
+.mask .sel:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }

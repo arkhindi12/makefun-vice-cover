@@ -302,6 +302,8 @@ async function addSample(name) {
  * the extension follows the encoder: a JPEG export is named .jpg, never a PNG name over JPEG bytes.
  */
 export function fileNameFor(state, size) {
+  // One rule for both halves: lowercase, every run of anything that is not a-z or 0-9 becomes one dash, and the dashes
+  // at either end go, so "Vice City" and "  VICE__city!! " both reach `vice-city` and never an empty field.
   const slug = (text) =>
     String(text ?? '')
       .toLowerCase()
@@ -309,11 +311,12 @@ export function fileNameFor(state, size) {
       .replace(/^-+|-+$/g, '');
   const place = slug(state.place);
   const caption = slug(state.caption);
-  const stem = [place, caption, `${size.w}x${size.h}`].filter(Boolean).join('-');
-  // The size alone is not a name that says what the file is: with no place and no caption it is just `cover`.
-  const named = place || caption;
-  const name = named ? `${stem}-cover` : 'cover';
-  return `${name}.jpg`;
+  // The size is the one field always present: it is what makes two exports of the same poster distinguishable.
+  const dimension = `${size.w}x${size.h}`;
+  // Neither a place nor a caption: `cover.jpg` alone. The size stays out, because a file called `1080x1350-cover` does
+  // not say what it is, and "cover" is not suffixed again to `cover-cover`.
+  const stem = place || caption ? [place, caption, dimension].filter(Boolean).join('-') : 'cover';
+  return place || caption ? `${stem}-cover.jpg` : 'cover.jpg';
 }
 
 function exportPng() {

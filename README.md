@@ -29,9 +29,13 @@ and export it as a JPEG. Everything happens in your browser: the photos never le
 
 | Layout | Panels drawn, upright | Panels drawn, wide |
 | --- | --- | --- |
-| `split` — 2-panel split | 2 | 3 |
-| `band` — 3-panel band | 4 | 4 |
-| `grid` — 6-panel grid | 6 | 6 |
+| `split` — 2-panel split: a wide hero beside a narrower one (wide: a low full-width hero over two tall ones) | 2 | 3 |
+| `band` — 3-panel band: a tall hero, a narrow strip beside it, a shorter panel under the strip | 4 | 4 |
+| `grid` — 6-panel grid: 3 wide by 2 tall, columns and rows uneven | 6 | 6 |
+
+Upright and wide draw different posters, so the picker's `2 panels` / `3 panels` / `6 panels` label is the number of
+photos a layout asks for, not the number of frames it draws: a band draws four panels from three photos, and a split
+draws three when the post is wide.
 
 The panel count is `panelRects(layout, wide).length` in `app/src/cover.js`, and the editor reads it from there rather
 than restating it, so the strip, the drop hint and the renderer always agree. Upright means a canvas taller than it is

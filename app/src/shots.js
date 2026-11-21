@@ -5,6 +5,12 @@
 // it shows the editor chrome. The query string then overrides any of those fields, so `?shot=cover` with no other
 // parameter renders the app's own opening state and every named scene is described in one place instead of by a
 // scattered chain of `??` defaults.
+//
+// Three globals carry a run outward, and only these: `__shotReady` turns true once the framed page has painted,
+// `__lastExport` holds the last export the editor made, and `__shotReport` is the record of what the scene did
+// ({ scene, layout, size, panels, photos, crops }) so a render script prints the framing each panel was given instead
+// of inferring it from the query. `__captionProbe` and `__panelRects` are the renderer's own (cover.js) and are left
+// exactly as it writes them.
 import { ZOOM, clampZoom } from './cover.js';
 
 export const SCENES = {
@@ -70,11 +76,16 @@ export function clampCropSpec(spec) {
   return { zoom: steppedZoom(Number.isFinite(z) && z > 0 ? z : ZOOM_MIN), ox: heldPan(x), oy: heldPan(y) };
 }
 
-/** The photos a scene loads, from the query's comma list or the scene's own defaults. */
+/**
+ * The photos a scene loads, from the query's comma list or the scene's own defaults. A name is dropped unless it is a
+ * plain sample name (letters, digits, a dash), so a query cannot walk out of `./samples/`, and an empty list falls back
+ * to the scene's own photos rather than leaving every panel bare.
+ */
 function photosOf(query, scene) {
   const asked = query.get('photo');
   const names = asked === null ? scene.photos : asked.split(',').filter(Boolean);
-  return names.length > 0 ? names : scene.photos;
+  const safe = names.filter((name) => /^[a-z0-9][a-z0-9-]*$/i.test(name));
+  return safe.length > 0 ? safe : scene.photos;
 }
 
 export async function runShot(shot, query, api) {
@@ -85,9 +96,11 @@ export async function runShot(shot, query, api) {
     document.body.classList.add('shot-cover');
   }
   const { state, loadImage } = api;
-  // The scene flags its work here and stamps it done at the end, so a reload starts from "not ready" again.
+  // The scene flags its work here and stamps it done at the end, so a reload starts from "not ready" again. The report
+  // from a previous run is cleared with them: a reader that sees __shotReady false also sees no report to trust.
   window.__shotReady = false;
   window.__lastExport = null;
+  window.__shotReport = null;
 
   const layout = query.get('layout') ?? scene.layout;
   const size = query.get('size') ?? scene.size;
@@ -127,13 +140,17 @@ export async function runShot(shot, query, api) {
     crops.push(crop);
   }
 
-  // What the scene did, for the render script and the report: which framing each panel got, not a guess at it.
+  // What the scene did, for the render script and the report: which framing each panel got, not a guess at it. The
+  // render script reads this instead of re-parsing `crops` out of the query, so a panel whose crop was clamped, or
+  // whose crop came from the repeat cycle rather than the query, is reported as it was drawn. `scene` is the name that
+  // ran, not the name asked for, so a mistyped ?shot= reports the scene it fell back to. Cleared at the top of a run
+  // with the other flags, so a stale report can never be read as this one's.
   window.__shotReport = {
     scene: sceneName,
-    panels: n,
-    photos: images.map((img) => img.src.split('/').pop()),
     layout,
     size,
+    panels: n,
+    photos: images.map((img) => img.src.split('/').pop()),
     crops: crops.map((c) => `${c.zoom.toFixed(2)},${c.ox.toFixed(2)},${c.oy.toFixed(2)}`),
   };
 

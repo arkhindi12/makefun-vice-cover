@@ -133,6 +133,12 @@ function share(bytes: number, cap: number): string {
   return `${((bytes / cap) * 100).toFixed(1)}%`;
 }
 
+/** The same share with its headroom spelled out, so 98% reads as a warning and 61% as room to spare. */
+function headroom(bytes: number, cap: number): string {
+  const left = cap - bytes;
+  return `${share(bytes, cap)} of the ${cap}-byte cap, ${left} bytes to spare`;
+}
+
 // ---------------------------------------------------------------- image headers: no decoder, no dependency
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -277,10 +283,12 @@ function main(): void {
   const dims = shots.map((s) => `${s.name} ${s.w} x ${s.h}`).join(', ');
   process.stdout.write(`Vice Lines: app/ ${app.count} files and directories (${app.totalBytes} bytes), screenshots/ ${shots.length} images (${dims}), dossier.json ${dossier.length} bytes\n`);
   // Each file against the cap it has to fit, one per line: a build is not only passing, it is passing by this much.
+  // The bytes, the percentage of the cap and the bytes left are all printed, because the percentage alone hides which
+  // number is the one about to break — a screenshot at 98% and a dossier at 70% need different attention.
   for (const s of shots) {
-    process.stdout.write(`  screenshots/${s.name}: ${s.bytes} bytes, ${share(s.bytes, CAPS.shot_max_bytes)} of the ${CAPS.shot_max_bytes}-byte cap\n`);
+    process.stdout.write(`  screenshots/${s.name}: ${s.bytes} bytes, ${headroom(s.bytes, CAPS.shot_max_bytes)}\n`);
   }
-  process.stdout.write(`  dossier.json: ${dossier.length} bytes, ${share(dossier.length, CAPS.dossier_max_bytes)} of the ${CAPS.dossier_max_bytes}-byte cap\n`);
+  process.stdout.write(`  dossier.json: ${dossier.length} bytes, ${headroom(dossier.length, CAPS.dossier_max_bytes)}\n`);
 }
 
 try {
