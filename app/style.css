@@ -1,5 +1,5 @@
 /* Vice Lines editor: a dark studio around the live cover. Plain CSS, one file, no network font: the UI uses the
-   system stack and the cover's own face (app/fonts/Anton-Regular.ttf) only on the poster itself. */
+   system stack and the cover sets its lettering in heavy system faces too, weighted in canvas. */
 :root {
   --ink: #0e0713;
   --ink2: #170c1f;

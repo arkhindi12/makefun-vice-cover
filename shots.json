@@ -1,5 +1,5 @@
 [
-  { "name": "1-cover.png", "query": "?shot=cover&layout=band&size=portrait&photo=pier,boulevard&caption=Sunset%20Heist&place=Vice%20City", "w": 1080, "h": 1350 },
-  { "name": "2-editor.png", "query": "?shot=editor&layout=band&size=portrait&photo=pier,boulevard&caption=Sunset%20Heist&place=Vice%20City", "w": 1280, "h": 820 },
-  { "name": "3-cover.png", "query": "?shot=cover&layout=grid&size=square&photo=pier,boulevard&caption=Boulevard%20Queen&place=Vice%20City", "w": 1080, "h": 1080 }
+  { "name": "1-cover.jpg", "query": "?shot=cover&layout=band&size=wide&photo=boulevard,pier&caption=Vice%20City&place=Sunset%20District&crops=1.55,-0.06,0.04;1.15,0.02,-0.03;2.10,-0.10,0.10;1.35,-0.02,0.05", "w": 1280, "h": 720 },
+  { "name": "2-editor.jpg", "query": "?shot=editor&layout=band&size=wide&photo=boulevard,pier&caption=Vice%20City&place=Sunset%20District", "w": 1280, "h": 820 },
+  { "name": "3-cover.jpg", "query": "?shot=cover&layout=grid&size=wide&photo=pier,boulevard&caption=Chrome%20Tales&place=Palm%20Bay&crops=1.9,-0.08,0.08;1.2,0.04,-0.02;1.5,-0.04,0.06;2.2,-0.12,0.12;1.35,0.0,0.0;1.7,-0.06,0.05", "w": 1280, "h": 720 }
 ]

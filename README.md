@@ -18,8 +18,9 @@ and export it as a PNG. Everything happens in your browser: the photos never lea
 - **A Vice City grade** — a magenta-to-orange sunset ramp for the backdrop and gutters, then a contrast
   and saturation lift on each photo followed by a tint at partial alpha, so the neon mood lands without
   washing the subject out. A sun disc, a halation bloom and a scanned-film grain pass finish it.
-- **Bold caption lettering** — a heavy display face in all caps with a hard dark outline and a long drop
-  shadow, split into a headline and a kicker. A `|` in the caption starts a new line.
+- **Bold caption lettering** — heavy system faces in all caps, thickened in canvas so the headline sets
+  as one heavy block, with a hard dark outline and a long drop shadow, split into a headline and a
+  kicker. A `|` in the caption starts a new line.
 - **Poster furniture** — a corner location strip, a rating plate and a series lockup, aligned to the
   panel edges instead of floating on top.
 - **Three post sizes** — 1080 × 1080, 1080 × 1350 and 1920 × 1080, exported as PNG.
@@ -32,7 +33,7 @@ Open `app/index.html` in desktop Chrome, or serve the folder:
 node serve.ts
 ```
 
-It works with the network off. Every script, font and image the page loads is a file under `app/` or a
+It works with the network off. Every script and image the page loads is a file under `app/` or a
 `data:` URI; nothing is fetched from anywhere.
 
 ## Build the entry
@@ -41,8 +42,11 @@ It works with the network off. Every script, font and image the page loads is a 
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-`main.ts` copies `app/` and `screenshots/` into the output directory and writes `dossier.json` with
-`buildDossier` from `vendor/makefun-app.ts`. Two runs write byte-identical output.
+`main.ts` checks the entry against the scorer's own caps (the file count, the bytes, the path lengths,
+the screenshots' count, size and pixel dimensions, and `app/index.html`), copies `app/` and
+`screenshots/` into the output directory and writes `dossier.json` with `buildDossier` from
+`vendor/makefun-app.ts`. It fails, naming the number that broke it, rather than writing an entry the
+scorer would refuse. Two runs write byte-identical output.
 
 ## Files
 
@@ -52,15 +56,14 @@ mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 | `app/src/cover.js` | `panelRects` for the layouts and `renderCover`, the whole poster renderer |
 | `app/src/main.js` | Editor state, panel selection, crop clamping, export |
 | `app/src/shots.js` | The screenshot scenes (`?shot=cover`, `?shot=editor`) |
-| `app/fonts/Anton-Regular.ttf` | The display face, under the SIL Open Font License (see `OFL.txt`) |
 | `app/samples/` | Sample photos made with an image model for make.fun, free to use |
 | `screenshots/` | Three screenshots: an exported cover, the editor, a second cover |
 
 ## Originality
 
-No Rockstar Games logo, wordmark, official artwork, character or font file is used. The display face
-ships under the SIL Open Font License. The cover furniture — the series lockup, the rating plate, the
-location strip — is drawn in code.
+No Rockstar Games logo, wordmark, official artwork, character or font file is used. The cover
+lettering is set in the machine's own heavy typefaces and weighted in canvas. The cover furniture — the
+series lockup, the rating plate, the location strip — is drawn in code.
 
 ## Licence
 

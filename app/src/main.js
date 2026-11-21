@@ -10,7 +10,6 @@ import {
   ZOOM,
   clampCrop,
   cropBox,
-  loadDisplayFont,
   panelRects,
   renderCover,
 } from './cover.js';
@@ -528,10 +527,11 @@ async function boot() {
   buildPickers();
   buildPanelStrip();
   draw();
-  const face = await loadDisplayFont();
+  // The caption is set in the machine's heavy faces and weighted in canvas, so nothing has to load before the first
+  // paint; the chip says which lettering the poster is using.
   const chip = $('fontstate');
-  chip.textContent = face ? 'Anton, OFL' : 'System lettering';
-  chip.classList.toggle('ok', Boolean(face));
+  chip.textContent = 'Heavy system lettering';
+  chip.classList.add('ok');
   draw();
 
   const shot = new URLSearchParams(location.search).get('shot');

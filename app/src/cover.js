@@ -3,8 +3,8 @@
 //
 // A cover is a multi-panel layout over a sunset backdrop: irregular photo panels, each graded to a teal-shadow and
 // warm-highlight duotone with a saturation lift, a sun disc and halation bloom behind the hero panel, a heavy caption
-// in the shipped OFL display face drawn twice (a long drop shadow, then the letters in white inside a hard dark
-// keyline and a pink outer glow), and poster furniture: a corner strip with a chevron, a rating plate, a title lockup
+// in a heavy system stack drawn twice (a long drop shadow, then the letters in white inside a hard dark keyline and a
+// pink outer glow), and poster furniture: a corner strip with a chevron, a rating plate, a title lockup
 // and a scanned-film grain drawn once per render from a small noise tile.
 
 /** The post sizes the app exports in. */
@@ -21,26 +21,18 @@ export const LAYOUTS = [
   { id: 'grid', label: '6-panel grid', panels: 6 },
 ];
 
-export const FONT_FAMILY = 'ViceDisplay';
-const FONT_URL = new URL('../fonts/Anton-Regular.ttf', import.meta.url).href;
+/** The display stack the poster's lettering is set in: the heaviest faces a desktop has, no font file shipped. */
+export const FONT_FAMILY = "'Arial Black', 'Helvetica Neue', Impact, sans-serif";
+/**
+ * The stack the caption is actually measured and drawn in. It opens with the same three faces as FONT_FAMILY, but in
+ * the order that keeps the narrowest heavy face first and adds the narrow heavy faces a Linux machine does have
+ * (Nimbus Sans Narrow, Liberation Sans Narrow) ahead of the generic fallback: where Arial Black, Helvetica Neue or
+ * Impact is installed one of them is used and the result is the poster face; where none is, the caption still sets
+ * narrow and heavy instead of taking a wide default face that breaks a two-word headline over two lines.
+ */
+const CAPTION_FAMILY = "Impact, 'Arial Black', 'Nimbus Sans Narrow', 'Liberation Sans Narrow', 'Helvetica Neue', sans-serif";
 
-let fontReady = null;
-/** Loads the shipped display face once; every export waits on it so the first PNG has the real lettering. */
-export function loadDisplayFont() {
-  if (fontReady === null) {
-    const face = new FontFace(FONT_FAMILY, `url("${FONT_URL}")`);
-    fontReady = face.load().then(
-      (loaded) => {
-        document.fonts.add(loaded);
-        return loaded;
-      },
-      () => null,
-    );
-  }
-  return fontReady;
-}
-
-const font = (size) => `${size}px "${FONT_FAMILY}", Impact, "Arial Black", sans-serif`;
+const font = (size) => `900 ${size}px ${CAPTION_FAMILY}`;
 
 /** The art's title lockup: one word under its initial, the way a game box wears its logo. */
 export const TITLE_WORD = 'CHROME';
@@ -489,6 +481,15 @@ export function setCaption(ctx, caption, boxW, boxH, weight = 0.62) {
   if (row) rows.push(row);
   const rowsHeight = boxH / (rows.length + (kicker ? 0.55 : 0));
   const longest = rows.reduce((a, b) => (a.length > b.length ? a : b), '');
+  // A headline of one word knows its width exactly, so the room it is given is the largest the box allows: a line of
+  // that width fits the box at the size found by the first measure, so it is scaled up to fill the box instead of
+  // standing small under a cap the box's height put on it.
+  if (rows.length === 1 && longest !== '') {
+    const probe = fitWord(ctx, longest, boxW, rowsHeight, weight * 1.85);
+    ctx.font = font(probe);
+    const lineW = ctx.measureText(longest).width;
+    if (lineW > 0 && lineW < boxW) rowsHeight = Math.min(boxH * 2.4, (rowsHeight * boxW) / lineW);
+  }
   const size = fitWord(ctx, longest, boxW, rowsHeight, weight * 1.85);
   const lines = rows.map((text) => ({ text, size, kind: 'head' }));
   if (kicker) lines.push({ text: kicker, size: size * 0.3, kind: 'kicker' });
@@ -496,6 +497,25 @@ export function setCaption(ctx, caption, boxW, boxH, weight = 0.62) {
   let total = 0;
   for (const ln of lines) total += ln.size * (ln.kind === 'kicker' ? 1.34 : 0.94);
   return { lines, size, tracking, total };
+}
+
+/** A heavy system face has no hinting that a stroke needs, so the lettering is kept at a crisp end: the caption sets
+ * the block and, for the screenshots' sake, leaves its line count and first line's pixel extent in __captionProbe. */
+function measureCaption(ctx, block, boxW, boxH) {
+  const first = block.lines[0];
+  if (!first) return;
+  ctx.save();
+  ctx.font = font(first.size);
+  const m = ctx.measureText(first.text);
+  window.__captionProbe = {
+    rows: block.lines.filter((l) => l.kind === 'head').length,
+    width: m.actualBoundingBoxLeft + m.actualBoundingBoxRight,
+    height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent,
+    boxW,
+    boxH,
+    text: first.text,
+  };
+  ctx.restore();
 }
 
 /**
@@ -542,7 +562,9 @@ export function paintCaption(ctx, block, x, y, boxW, vertical) {
 
 /**
  * One run of letters: the long drop shadow first (offset down and right, blurred, in near-black), then a pink outer
- * glow, a hard dark keyline, and the letters in warm white on top.
+ * glow, a hard dark keyline, and the letters in warm white on top. The weight the system stack gives is finished in
+ * canvas: the letterform is stroked with its own fill colour at a twentieth of its size before the dark outline, so
+ * the caption stays a heavy block whatever faces the machine has.
  */
 function paintGlyph(ctx, text, x, cy, size, stroke) {
   ctx.save();
@@ -560,14 +582,21 @@ function paintGlyph(ctx, text, x, cy, size, stroke) {
   ctx.lineWidth = stroke * 3.2;
   ctx.strokeText(text, x, cy);
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = '#0b0208';
-  ctx.lineWidth = stroke * 2;
-  ctx.strokeText(text, x, cy);
 
   const fill = ctx.createLinearGradient(0, cy - size * 0.5, 0, cy + size * 0.5);
   fill.addColorStop(0, '#ffffff');
   fill.addColorStop(0.6, '#fff6e8');
   fill.addColorStop(1, '#ffd8bd');
+
+  // The weight pass: the glyphs thickened in their own colour, so the strokes melt together into one heavy block.
+  ctx.strokeStyle = fill;
+  ctx.lineWidth = size * 0.06;
+  ctx.strokeText(text, x, cy);
+
+  ctx.strokeStyle = '#0b0208';
+  ctx.lineWidth = stroke * 2;
+  ctx.strokeText(text, x, cy);
+
   ctx.fillStyle = fill;
   ctx.fillText(text, x, cy);
   ctx.restore();
@@ -752,7 +781,49 @@ function drawFinish(ctx, w, h) {
   ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth);
 }
 
-// ---------------------------------------------------------------- the render
+/** The x fractions where panels meet: every panel's left and right edge, in order. */
+function seamsOf(rects) {
+  const cuts = new Set();
+  for (const r of rects) {
+    cuts.add(r.x);
+    cuts.add(r.x + r.w);
+  }
+  return [...cuts].sort((a, b) => a - b);
+}
+
+/**
+ * The caption's box for a layout. The declared slot is kept where a headline sets as one line without crossing a
+ * seam — a panel edge or the gutter between two. Where the slot would break a headline across panels (the narrow
+ * column beside a band's hero, the strip under a grid's top row), the headline is turned to run across the poster
+ * instead: its box starts and ends on gutters, so the line is one run of type over the photographs between them and
+ * never straddles a photograph's own edge. The band sits at the foot of the deepest panel the box crosses.
+ */
+function captionBoxFor(ctx, slot, rects, w, h, caption) {
+  const seams = seamsOf(rects);
+  const crossings = (box) => seams.filter((s) => s > box.x + 0.004 && s < box.x + box.w - 0.004).length;
+  if (slot.vertical || crossings(slot.caption) === 0) return slot;
+  const gutters = seams.filter((s) => s > 0.002 && s < 0.998);
+  const spans = [];
+  for (let i = 0; i < gutters.length; i++) {
+    for (let j = i + 1; j < gutters.length; j++) {
+      const a = gutters[i];
+      const b = gutters[j];
+      if (b - a < 0.22) continue;
+      // The band stands above the highest foot among the panels the run crosses, so it is over the photos.
+      const floors = rects.filter((r) => r.x < b && r.x + r.w > a).map((r) => r.y + r.h);
+      const band = { x: a, y: Math.max(...floors) - 0.2, w: b - a, h: 0.2 };
+      if (band.y < 0.02) continue;
+      // The line has to set on its own: one 0.62-weight headline row within the band.
+      const start = setCaption(ctx, caption, band.w * w, band.h * h * 1.9, 0.62);
+      if (start.lines.filter((l) => l.kind === 'head').length > 1) continue;
+      spans.push({ band, size: start.size });
+    }
+  }
+  if (spans.length === 0) return slot;
+  // The widest run that still sets one line; ties go to the lower band.
+  spans.sort((p, q) => q.band.w - p.band.w || q.band.y - p.band.y);
+  return { ...slot, vertical: false, caption: spans[0].band };
+}
 
 /**
  * Draws the whole cover onto ctx, at the context's own size. state: { layout, caption, place, panels: [{img, crop}] }
@@ -765,8 +836,10 @@ export function renderCover(ctx, state) {
   const layout = LAYOUTS.some((l) => l.id === state.layout) ? state.layout : 'split';
   const wide = w > h * 1.25;
   const rects = panelRects(layout, wide);
-  const slot = slotsOf(layout, wide);
+  const slot = captionBoxFor(ctx, slotsOf(layout, wide), rects, w, h, state.caption ?? '');
   const panels = state.panels ?? [];
+  // The layout's rectangles, for whoever frames or measures the render (the screenshot run reads them).
+  window.__panelRects = { layout, wide, rects };
 
   drawBackdrop(ctx, w, h);
   const hero = rects.reduce((a, b) => (a.w * a.h > b.w * b.h ? a : b), rects[0]);
@@ -783,22 +856,17 @@ export function renderCover(ctx, state) {
   const boxW = slot.caption.w * w;
   const boxH = slot.caption.h * h;
   // A vertical caption is a column of letters, so its size is the column's width (one glyph across), not the height.
+  // The headline is set one line deep: its box is sized for the rows it needs, so the lettering fills the panel's
+  // width as one heavy block instead of standing small in a box made for a stack of words.
+  const head = splitCaption(state.caption ?? '').headline.split(/\s+/).filter(Boolean).length;
+  const rows = Math.max(1, slot.vertical ? 1 : Math.min(head, 2));
   const block = slot.vertical
     ? setCaption(ctx, state.caption ?? '', boxW, boxW * 1.4, 0.74)
-    : setCaption(ctx, state.caption ?? '', boxW, boxH, 0.62);
-  // A column that would run past the canvas is scaled down to the room it has, so no glyph is ever cut off.
-  if (slot.vertical && block.lines.length > 0) {
-    const glyphs = block.lines.reduce((n, ln) => n + ln.text.replace(/\s/g, '').length + 0.4, 0);
-    const step = block.size * 0.98;
-    const room = boxH;
-    if (glyphs * step > room) {
-      const k = room / (glyphs * step);
-      for (const ln of block.lines) ln.size *= k;
-      block.size *= k;
-      block.total *= k;
-    }
-  }
+    : setCaption(ctx, state.caption ?? '', boxW, boxH * (0.55 / rows), 0.99);
+  // The box the block is set to its foot in: the room those rows take, standing at the panel's foot.
+  const blockH = slot.vertical ? boxH : Math.min(boxH, block.total / 0.9);
   if (block.lines.length > 0 && block.lines[0].text) {
+    measureCaption(ctx, block, boxW, boxH);
     const bx = (slot.caption.x + slot.caption.w / 2) * w;
     // A band caption is set to its box's foot, so whatever its size it stands on the same baseline.
     const by = slot.caption.y * h + boxH - block.total;
